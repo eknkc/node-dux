@@ -6,13 +6,13 @@ export function M(...args) { return new Immutable.Map(...args) }
 export function L(...args) { return new Immutable.List(...args) }
 export function S(...args) { return new Immutable.Set(...args) }
 
-export function createAction(name) {
+export function createAction(name, mapper = x => x) {
   var symbol = Symbol(name);
 
   var action = function(...data) {
     return {
       type: symbol,
-      payload: data.length > 1 ? Object.assign({}, ...data) : data[0]
+      payload: mapper(...data)
     }
   }
 
