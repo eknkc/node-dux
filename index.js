@@ -36,7 +36,7 @@ export function createReducer(defState, reducers) {
 export function combineReducers(reducers) {
   return function(state = Immutable({}), action) {
     Object.keys(reducers).forEach(rkey => {
-      let oldState = state.get(rkey);
+      let oldState = state[rkey];
       let newState = reducers[rkey](oldState, action);
 
       if (typeof newState === 'undefined')
