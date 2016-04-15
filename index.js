@@ -1,10 +1,6 @@
-import Immutable from 'immutable'
+import Immutable from 'seamless-immutable'
 
 export { Immutable };
-
-export function M(...args) { return new Immutable.Map(...args) }
-export function L(...args) { return new Immutable.List(...args) }
-export function S(...args) { return new Immutable.Set(...args) }
 
 export function createAction(name, mapper = x => x) {
   var symbol = Symbol(name);
@@ -23,13 +19,13 @@ export function createAction(name, mapper = x => x) {
 
 export function createReducer(defState, reducers) {
   return function(state = defState, action) {
-    if (!Immutable.Iterable.isIterable(state))
-      state = Immutable.fromJS(state);
+    if (!Immutable.isImmutable(state))
+      state = Immutable(state);
 
     if (action && action.type && reducers[action.type]) {
       state = reducers[action.type](state, action);
 
-      if (!Immutable.Iterable.isIterable(state))
+      if (!Immutable.isImmutable(state))
         throw new TypeError('Reducers must return Immutable objects.');
     }
 
@@ -38,7 +34,7 @@ export function createReducer(defState, reducers) {
 }
 
 export function combineReducers(reducers) {
-  return function(state = new Immutable.Map(), action) {
+  return function(state = Immutable({}), action) {
     Object.keys(reducers).forEach(rkey => {
       let oldState = state.get(rkey);
       let newState = reducers[rkey](oldState, action);
