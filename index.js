@@ -26,7 +26,7 @@ export function createReducer(defState, reducers) {
       state = reducers[action.type](state, action);
 
       if (!Immutable.isImmutable(state))
-        throw new TypeError('Reducers must return Immutable objects.');
+        state = Immutable(state);
     }
 
     return state;
