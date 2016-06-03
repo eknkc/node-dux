@@ -28,7 +28,10 @@ export function createActions(options, ...names) {
   return names.reduce((actions, name) => Object.assign(actions, { [name]: createAction(options.prefix + ":" + name) }), {});
 }
 
-export function createReducer(defState, reducers) {
+export function createReducer(defState, reducers = {}, combine) {
+  if (combine)
+    combine = combineReducers(combine);
+
   return function(state = defState, action) {
     if (!Immutable.isImmutable(state))
       state = Immutable(state);
@@ -39,6 +42,9 @@ export function createReducer(defState, reducers) {
       if (!Immutable.isImmutable(state))
         state = Immutable(state);
     }
+
+    if (combine)
+      state = combine(state, action);
 
     return state;
   }
