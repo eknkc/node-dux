@@ -97,27 +97,37 @@ export function bindActions(actions, dispatch, meta) {
   return bound
 }
 
+const scopedAction = createAction("scopedAction");
+
 export function scopeReducer(scope, reducer) {
   return (state, action) => {
-    if (!action || !action.meta || action.meta.scope !== scope)
-      return state;
+    if (action.type === scopedAction.type && action.meta.scope === scope)
+      action = action.payload
 
     return reducer(state, action);
   }
 }
 
 export function scopeAction(scope, action) {
-  return (...args) => {
-    let act = action(...args);
-    act.meta = act.meta || {};
-    act.meta.scope = scope;
-    return act;
+  function wrapResult(result) {
+    if (typeof result === 'function')
+      return (dispatch, getState) => result(action => dispatch(wrapResult(action)), getState)
+
+    if (typeof result.then === 'function')
+      return result.then(r => wrapResult(r));
+
+    return scopedAction(result, {
+      scope,
+      logTransform: () => Object.assign({}, result, { type: `[${scope}] ${String(result.type)}` })
+    });
   }
+
+  return (payload, meta) => wrapResult(action(payload, meta));
 }
 
 export function scopeActions(scope, actions) {
   if (typeof actions === 'function')
-    return acopeAction(scope, actions)
+    return scopeAction(scope, actions)
 
   if (typeof actions !== 'object' || actions === null)
     throw new Error("Action creators must be a function.")
@@ -129,9 +139,9 @@ export function scopeActions(scope, actions) {
     if (key === 'default') continue;
     var action = actions[key]
     if (typeof action === 'function') {
-      scoped[key] = acopeAction(scope, action)
+      scoped[key] = scopeAction(scope, action)
     } else if (typeof action === 'object') {
-      scoped[key] = acopeActions(scope, action)
+      scoped[key] = scopeActions(scope, action)
     }
   }
   return scoped
