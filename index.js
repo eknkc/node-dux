@@ -86,6 +86,7 @@ export function bindActions(actions, dispatch, meta) {
   var bound = {}
   for (var i = 0; i < keys.length; i++) {
     var key = keys[i]
+    if (key === 'default') continue;
     var action = actions[key]
     if (typeof action === 'function') {
       bound[key] = bindAction(action, dispatch, meta)
@@ -94,4 +95,44 @@ export function bindActions(actions, dispatch, meta) {
     }
   }
   return bound
+}
+
+export function scopeReducer(scope, reducer) {
+  return (state, action) => {
+    if (!action || !action.meta || action.meta.scope !== scope)
+      return state;
+
+    return reducer(state, action);
+  }
+}
+
+export function scopeAction(scope, action) {
+  return (...args) => {
+    let act = action(...args);
+    act.meta = act.meta || {};
+    act.meta.scope = scope;
+    return act;
+  }
+}
+
+export function scopeActions(scope, actions) {
+  if (typeof actions === 'function')
+    return acopeAction(scope, actions)
+
+  if (typeof actions !== 'object' || actions === null)
+    throw new Error("Action creators must be a function.")
+
+  var keys = Object.keys(actions)
+  var scoped = {}
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i]
+    if (key === 'default') continue;
+    var action = actions[key]
+    if (typeof action === 'function') {
+      scoped[key] = acopeAction(scope, action)
+    } else if (typeof action === 'object') {
+      scoped[key] = acopeActions(scope, action)
+    }
+  }
+  return scoped
 }
