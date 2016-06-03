@@ -1,6 +1,6 @@
 {
   "name": "@eknkc/dux",
-  "version": "2.2.2",
+  "version": "3.0.0",
   "description": "Redux helpers",
   "main": "build.js",
   "scripts": {

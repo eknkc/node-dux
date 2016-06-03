@@ -2,13 +2,14 @@ import Immutable from 'seamless-immutable'
 
 export { Immutable };
 
-export function createAction(name, mapper = x => x) {
+export function createAction(name, mapper = x => x, metaMapper = x => x) {
   var symbol = Symbol(name);
 
-  var action = function(...data) {
+  var action = function(payload, meta) {
     return {
       type: symbol,
-      payload: mapper(...data)
+      payload: mapper(payload),
+      meta: metaMapper(meta)
     }
   }
 
@@ -28,11 +29,14 @@ export function createActions(options, ...names) {
   return names.reduce((actions, name) => Object.assign(actions, { [name]: createAction(options.prefix + ":" + name) }), {});
 }
 
-export function createReducer(defState, reducers = {}, combine) {
+export function createReducer(defState, reducers = {}, combine, filter) {
   if (combine)
     combine = combineReducers(combine);
 
   return function(state = defState, action) {
+    if (filter && !filter(action))
+      return state;
+
     if (!Immutable.isImmutable(state))
       state = Immutable(state);
 
@@ -65,4 +69,29 @@ export function combineReducers(reducers) {
 
     return state;
   }
+}
+
+export function bindAction(action, dispatch, meta = {}) {
+  return (payload, ameta = {}) => dispatch(action(payload, Object.assign({}, meta, ameta)));
+}
+
+export function bindActions(actions, dispatch, meta) {
+  if (typeof actions === 'function')
+    return bindAction(actions, dispatch, meta)
+
+  if (typeof actions !== 'object' || actions === null)
+    throw new Error("Action creators must be a function.")
+
+  var keys = Object.keys(actions)
+  var bound = {}
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i]
+    var action = actions[key]
+    if (typeof action === 'function') {
+      bound[key] = bindAction(action, dispatch, meta)
+    } else if (typeof action === 'object') {
+      bound[key] = bindActions(action, dispatch, meta)
+    }
+  }
+  return bound
 }
