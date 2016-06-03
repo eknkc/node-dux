@@ -25,7 +25,7 @@ export function createActions(options, ...names) {
 
   options.prefix = options.prefix || "";
 
-  return names.reduce((actions, name) => Object.assign(actions, { [name]: createAction(options.prefix + name) }), {});
+  return names.reduce((actions, name) => Object.assign(actions, { [name]: createAction(options.prefix + ":" + name) }), {});
 }
 
 export function createReducer(defState, reducers) {
