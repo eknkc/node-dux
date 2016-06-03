@@ -17,6 +17,17 @@ export function createAction(name, mapper = x => x) {
   return action;
 }
 
+export function createActions(options, ...names) {
+  if (typeof options === 'string') {
+    names = [options, ...names];
+    options = {}
+  }
+
+  options.prefix = options.prefix || "";
+
+  return names.reduce((actions, name) => Object.assign(actions, { [name]: createAction(options.prefix + name) }), {});
+}
+
 export function createReducer(defState, reducers) {
   return function(state = defState, action) {
     if (!Immutable.isImmutable(state))
