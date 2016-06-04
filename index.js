@@ -2,18 +2,49 @@ import Immutable from 'seamless-immutable'
 
 export { Immutable };
 
-export function createAction(name, mapper = x => x, metaMapper = x => x) {
-  var symbol = Symbol(name);
+const IDENTITY = x => x;
+const DUX_ACTION = Symbol()
 
-  var action = function(payload, meta) {
-    return {
+export function createAction(name, { map = IDENTITY, mapMeta = IDENTITY, mapState = IDENTITY } = {}) {
+  let action;
+
+  if (typeof name === 'function') {
+    action = function(payload, meta) {
+      let inner = name(payload, meta);
+
+      if (typeof inner === 'function') {
+        return function (dispatch, getState) {
+          return inner(dispatch, (root = false) => root ? getState() : mapState(getState()))
+        }
+      }
+
+      return inner;
+    }
+
+    action[DUX_ACTION] = {
+      thunk: true,
+      mapState: mapState,
+      original: name
+    };
+  } else {
+    let symbol = Symbol(name);
+
+    action = function(payload, meta) {
+      return {
+        type: symbol,
+        payload: map(payload),
+        meta: mapMeta(meta)
+      }
+    }
+
+    action.type = symbol;
+
+    action[DUX_ACTION] = {
+      basic: true,
       type: symbol,
-      payload: mapper(payload),
-      meta: metaMapper(meta)
+      name: name
     }
   }
-
-  action.type = symbol;
 
   return action;
 }
@@ -68,6 +99,28 @@ export function combineReducers(reducers) {
     })
 
     return state;
+  }
+}
+
+function getter(path) {
+  return function(obj) {
+    for (var i = 0; i < path.length; i++) {
+      if (typeof obj === 'undefined' || obj === null) return obj;
+      obj = obj[path[i]]
+    }
+
+    return obj;
+  }
+}
+
+export function factory(path, options = {}) {
+  let mapper = getter(path);
+
+  return {
+    createAction: (name, opt = {}) => createAction(typeof name === 'string' ? [...path, name].join(':') : name, Object.assign({ mapState: mapper }, options, opt)),
+    createReducer: (...args) => createReducer(...args),
+    path,
+    map: mapper
   }
 }
 
