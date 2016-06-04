@@ -5,46 +5,39 @@ export { Immutable };
 const IDENTITY = x => x;
 const DUX_ACTION = Symbol()
 
-export function createAction(name, { map = IDENTITY, mapMeta = IDENTITY, mapState = IDENTITY } = {}) {
-  let action;
+export function createAction(name, { map = IDENTITY, mapMeta = IDENTITY } = {}) {
+  let symbol = Symbol(name);
 
-  if (typeof name === 'function') {
-    action = function(payload, meta) {
-      let inner = name(payload, meta);
-
-      if (typeof inner === 'function') {
-        return function (dispatch, getState) {
-          return inner(dispatch, (root = false) => root ? getState() : mapState(getState()))
-        }
-      }
-
-      return inner;
-    }
-
-    action[DUX_ACTION] = {
-      thunk: true,
-      mapState: mapState,
-      original: name
-    };
-  } else {
-    let symbol = Symbol(name);
-
-    action = function(payload, meta) {
-      return {
-        type: symbol,
-        payload: map(payload),
-        meta: mapMeta(meta)
-      }
-    }
-
-    action.type = symbol;
-
-    action[DUX_ACTION] = {
-      basic: true,
+  let action = function(payload, meta) {
+    return {
       type: symbol,
-      name: name
+      payload: map(payload),
+      meta: mapMeta(meta)
     }
   }
+
+  action.type = symbol;
+
+  return action;
+}
+
+export function createThunk(name, func, { mapState = IDENTITY } = {}) {
+  let subAction = createAction(name);
+
+  let action = function(payload, meta) {
+    let inner = func(payload, meta);
+
+    if (typeof inner === 'function') {
+      return function (dispatch, getState) {
+        dispatch(subAction());
+        return inner(dispatch, (root = false) => root ? getState() : mapState(getState()))
+      }
+    }
+
+    return inner;
+  }
+
+  action.type = subAction.type;
 
   return action;
 }
@@ -113,15 +106,28 @@ function getter(path) {
   }
 }
 
-export function factory(path, options = {}) {
-  let mapper = getter(path);
-
-  return {
-    createAction: (name, opt = {}) => createAction(typeof name === 'string' ? [...path, name].join(':') : name, Object.assign({ mapState: mapper }, options, opt)),
-    createReducer: (...args) => createReducer(...args),
-    path,
-    map: mapper
+class Factory {
+  constructor(path, options = {}) {
+    this.path = path;
+    this.options = options;
+    this.map = getter(path);
   }
+
+  action(name, opt = {}) {
+    return createAction([...this.path, name].join(':'), Object.assign({}, this.options, opt))
+  }
+
+  thunk(name, func, opt = {}) {
+    return createThunk([...this.path, name].join(':'), func, Object.assign({ mapState: this.map }, this.options, opt))
+  }
+
+  reducer(...args) {
+    return createReducer(...args);
+  }
+}
+
+export function factory(path, options) {
+  return new Factory(path, options)
 }
 
 export function bindAction(action, dispatch, meta = {}) {
