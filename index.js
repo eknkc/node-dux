@@ -76,73 +76,27 @@ export function bindAction(action, dispatch, meta = {}) {
 }
 
 export function bindActions(actions, dispatch, meta) {
+  return wrapActions(actions, bindAction, dispatch, meta);
+}
+
+function wrapActions(actions, wrapper, ...args) {
   if (typeof actions === 'function')
-    return bindAction(actions, dispatch, meta)
+    return wrapper(actions, ...args)
 
   if (typeof actions !== 'object' || actions === null)
     throw new Error("Action creators must be a function.")
 
-  var keys = Object.keys(actions)
-  var bound = {}
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i]
-    if (key === 'default') continue;
-    var action = actions[key]
-    if (typeof action === 'function') {
-      bound[key] = bindAction(action, dispatch, meta)
-    } else if (typeof action === 'object') {
-      bound[key] = bindActions(action, dispatch, meta)
-    }
-  }
-  return bound
-}
+  return Object.keys(actions).reduce((memo, key) => {
+    if (key === 'default')
+      return memo;
 
-const scopedAction = createAction("scopedAction");
+    let action = actions[key];
 
-export function scopeReducer(scope, reducer) {
-  return (state, action) => {
-    if (action.type === scopedAction.type && action.meta.scope === scope)
-      action = action.payload
+    if (typeof action === 'function')
+      memo[key] = wrapper(action, ...args)
+    else if (typeof action === 'object')
+      memo[key] = wrapActions(action, wrapper, ...args)
 
-    return reducer(state, action);
-  }
-}
-
-export function scopeAction(scope, action) {
-  function wrapResult(result) {
-    if (typeof result === 'function')
-      return (dispatch, getState) => result(action => dispatch(wrapResult(action)), getState)
-
-    if (typeof result.then === 'function')
-      return result.then(r => wrapResult(r));
-
-    return scopedAction(result, {
-      scope,
-      logTransform: () => Object.assign({}, result, { type: `[${scope}] ${String(result.type)}` })
-    });
-  }
-
-  return (payload, meta) => wrapResult(action(payload, meta));
-}
-
-export function scopeActions(scope, actions) {
-  if (typeof actions === 'function')
-    return scopeAction(scope, actions)
-
-  if (typeof actions !== 'object' || actions === null)
-    throw new Error("Action creators must be a function.")
-
-  var keys = Object.keys(actions)
-  var scoped = {}
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i]
-    if (key === 'default') continue;
-    var action = actions[key]
-    if (typeof action === 'function') {
-      scoped[key] = scopeAction(scope, action)
-    } else if (typeof action === 'object') {
-      scoped[key] = scopeActions(scope, action)
-    }
-  }
-  return scoped
+    return memo;
+  }, {});
 }
