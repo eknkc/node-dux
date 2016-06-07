@@ -3,7 +3,6 @@ import Immutable from 'seamless-immutable'
 export { Immutable };
 
 const IDENTITY = x => x;
-const DUX_ACTION = Symbol()
 
 export function createAction(name, { map = IDENTITY, mapMeta = IDENTITY } = {}) {
   let symbol = Symbol(name);
@@ -53,7 +52,7 @@ export function createActions(options, ...names) {
   return names.reduce((actions, name) => Object.assign(actions, { [name]: createAction(options.prefix + ":" + name) }), {});
 }
 
-export function createReducer(defState, reducers = {}, combine, filter) {
+export function createReducer(defState, reducers = {}, { combine, filter } = {}) {
   if (combine)
     combine = combineReducers(combine);
 
@@ -121,8 +120,8 @@ class Factory {
     return createThunk([...this.path, name].join(':'), func, Object.assign({ mapState: this.map }, this.options, opt))
   }
 
-  reducer(...args) {
-    return createReducer(...args);
+  reducer(defState, reducers, options) {
+    return createReducer(defState, reducers, options);
   }
 }
 
